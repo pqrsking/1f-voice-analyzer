@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>1/f Fluctuation Analyzer</title>
+<style>
+    :root {
+        --primary: #FFC0CB;
+        --accent: #FF6B81;
+        --bg: #FFF5F7;
+        --text: #444;
+        --card-bg: #ffffff;
+        --stop-color: #ff8a80;
+    }
+    body {
+        font-family: sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 15px;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+    }
+    .container {
+        width: 100%;
+        max-width: 500px;
+        background: var(--card-bg);
+        border-radius: 24px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(255, 105, 180, 0.15);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    #error-log { display: none; background: #333; color: #ffcccc; padding: 10px; border-radius: 5px; font-size: 0.8rem; white-space: pre-wrap; margin-bottom: 10px; }
+    h1 { text-align: center; font-size: 1.3rem; margin: 5px 0; color: #555; }
+    .app-desc { background: #FFF0F5; border-radius: 12px; padding: 12px; font-size: 0.9rem; color: #666; line-height: 1.5; border: 1px solid var(--primary); }
+    .lang-selector { display: flex; justify-content: center; gap: 10px; margin-bottom: 5px; }
+    .lang-btn { background: #fff; border: 1px solid var(--primary); color: var(--text); padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; }
+    .lang-btn.active { background: var(--primary); color: #fff; font-weight: bold; }
+    .script-box { background: #fafafa; padding: 15px; border-radius: 10px; border: 2px dashed #ddd; font-size: 0.95rem; line-height: 1.8; max-height: 200px; overflow-y: auto; white-space: pre-wrap; text-align: left; }
+    .script-label { font-size: 0.8rem; font-weight: bold; color: var(--accent); margin-bottom: 5px; display: block; text-align: center; }
+    .btn-group { display: flex; flex-direction: column; gap: 12px; margin-top: 5px; }
+    button { background: var(--primary); border: none; padding: 16px; border-radius: 50px; font-size: 1.1rem; font-weight: bold; color: #444; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(255, 192, 203, 0.4); transition: background 0.3s; }
+    button:active { transform: scale(0.98); }
+    button:disabled { background: #eee; color: #aaa; }
+    button.is-recording { background: var(--stop-color); color: #fff; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 138, 128, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 138, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 138, 128, 0); } }
+    .status-text { text-align: center; font-weight: bold; color: var(--accent); height: 25px; }
+    .progress-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; display: none; }
+    .progress-bar { width: 0%; height: 100%; background: var(--accent); transition: width 1s linear; }
+    #result-area { display: none; text-align: center; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
+    .score-value { font-size: 2.5rem; font-weight: bold; color: var(--accent); }
+    .score-comment { background: #fdf5e6; padding: 10px; border-radius: 10px; margin: 10px 0; font-size: 0.95rem; white-space: pre-wrap; }
+    .chart-box { height: 200px; width: 100%; background: #fff; border: 1px solid #eee; border-radius: 10px; }
+    #fileInput { display: none; }
+</style>
+<script>
+    window.onerror = function(msg, url, line) {
+        var el = document.getElementById('error-log');
+        if(el) {
+            el.style.display = 'block';
+            el.innerText += "Error: " + msg + " (Line " + line + ")\n";
+        }
+        return false;
+    };
+</script>
+</head>
+<body>
+
+<div class="container">
+    <div id="error-log"></div>
+
+    <div class="lang-selector">
+        <button id="btnLangJa" class="lang-btn active" onclick="changeLang('ja')">日本語</button>
+        <button id="btnLangEn" class="lang-btn" onclick="changeLang('en')">English</button>
+    </div>
+
+    <h1 id="appTitle">声の1/fゆらぎ診断</h1>
+
+    <div id="appDesc" class="app-desc">
+        「1/fゆらぎ」とは、自然界にある心地よいリズムのことです。<br>あなたの声の癒やし効果を測定します。
+    </div>
+
+    <div>
+        <span class="script-label" id="scriptLabel">▼ 録音中に読んでください (スクロール可) ▼</span>
+        <div class="script-box" id="readingScript">...</div>
+    </div>
+
+    <div class="btn-group">
+        <button id="btnMic" onclick="toggleMic()">
+            🎤 <span id="txtMic">マイクで録音 (3分)</span>
+        </button>
+        <button id="btnFile" onclick="triggerFile()">
+            📂 <span id="txtFile">ファイルを選択</span>
+        </button>
+        <input type="file" id="fileInput" accept="audio/*" onchange="handleFile(this)">
+    </div>
+
+    <div style="margin-top:10px;">
+        <div id="statusText" class="status-text">Ready</div>
+        <div id="progressContainer" class="progress-bg">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+    </div>
+
+    <div id="result-area">
+        <div id="txtResultTitle" style="color:#888; font-size:0.8rem;">1/fゆらぎの可能性</div>
+        <div id="scoreValue" class="score-value">---%</div>
+        <div id="scoreComment" class="score-comment"></div>
+        <canvas id="myCanvas" class="chart-box"></canvas>
+    </div>
+</div>
+
+<script>
+    var curLang = 'ja';
+    var mediaRecorder = null;
+    var recordTimer = null;
+
+    // 長文スクリプト
+    var scriptJA = "【森の散歩道】\n\n" +
+    "ある晴れた日の午後、私は森の中をゆっくりと散歩していました。\n" +
+    "木々の間から差し込む木漏れ日が、優しく地面を照らしています。足元には柔らかい土の感触があり、歩くたびにカサカサという落ち葉の音が心地よく響きます。\n\n" +
+    "耳を澄ますと、遠くの方から小川のせせらぎが聞こえてきます。水が石に当たり、跳ねる音は、まるで自然が奏でる音楽のようです。時折、小鳥たちのさえずりがそのメロディーに加わり、森全体がひとつのハーモニーを奏でているかのようです。\n\n" +
+    "大きく深呼吸をしてみました。\n" +
+    "ひんやりとした澄んだ空気が、体の中を巡っていきます。森の香り、湿った土の匂い、そして草花の甘い香り。それらが混ざり合い、私の心を静かに解きほぐしてくれます。\n\n" +
+    "ふと空を見上げると、雲がゆっくりと流れていくのが見えました。\n" +
+    "急ぐ必要はありません。ただ、この瞬間の「ゆらぎ」に身を任せること。それが、忘れかけていた大切な感覚を思い出させてくれる気がします。\n\n" +
+    "風が吹き、木々の葉がザワザワと揺れました。この不規則で、でも心地よいリズムこそが「1/fゆらぎ」なのでしょう。\n" +
+    "焚き火の炎の揺らめきや、波の音、そして私たちの心臓の鼓動。すべてが同じリズムでつながっています。\n\n" +
+    "しばらく歩いていると、日々の忙しさや悩み事が、とても小さく感じられてきました。\n" +
+    "自然の中にいると、私たちは自分自身の内側にある静けさと再び出会うことができます。\n\n" +
+    "この穏やかな時間を胸に刻み、また明日からの日々を大切に過ごしていきたいと思います。\n" +
+    "自分の声にも、そんな優しさが宿っていることを願いながら、言葉を紡いでいきます。";
+
+    var scriptEN = "[A Walk in the Forest]\n\n" +
+    "One sunny afternoon, I decided to take a slow, gentle walk through the forest.\n" +
+    "The sunlight filtered softly through the canopy of trees, creating a patchwork of light and shadow on the ground. Beneath my feet, the earth felt soft and welcoming, and the sound of rustling leaves accompanied my every step.\n\n" +
+    "Closing my eyes for a moment, I listened carefully. In the distance, I could hear the murmuring of a nearby brook. The water flowing over stones created a soothing rhythm, like music played by nature itself. Occasionally, the cheerful chirping of birds added a melody to this natural symphony, creating a perfect harmony.\n\n" +
+    "I took a deep, slow breath.\n" +
+    "The crisp, cool air filled my lungs, revitalizing my body. The scent of the forest—the damp earth, the pine needles, and the subtle sweetness of wildflowers—blended together, gently untangling the knots in my mind.\n\n" +
+    "Looking up at the sky, I watched white clouds drifting lazily across the blue. There was no need to rush. There was nowhere else I needed to be. Just surrendering to this moment, to this gentle fluctuation, reminded me of a peace I had almost forgotten.\n\n" +
+    "A breeze passed through, causing the leaves to sway and whisper. This irregular yet comforting rhythm is what we call \"1/f fluctuation.\"\n" +
+    "It is the same rhythm found in the flickering of a candle flame, the lapping of ocean waves, and even the beating of our own hearts. It connects us to everything around us.\n\n" +
+    "As I continued walking, the worries and busyness of daily life began to feel distant and small. Nature has a way of helping us reconnect with the silence within ourselves.\n\n" +
+    "Carrying this sense of calm with me, I feel ready to cherish the days ahead. I hope that my voice, too, carries this gentle rhythm, bringing peace to myself and those who hear it.";
+
+    var I18N = {
+        ja: {
+            title: "声の1/fゆらぎ診断",
+            desc: "「1/fゆらぎ」とは、自然界にある心地よいリズムのことです。<br>あなたの声の癒やし効果を測定します。",
+            scriptLabel: "▼ 録音中に読んでください (スクロール可) ▼",
+            script: scriptJA,
+            btnMic: "マイクで録音 (最大3分)",
+            btnStop: "■ 録音を停止して分析",
+            btnFile: "音声ファイルを選択",
+            ready: "準備完了",
+            recording: "録音中... 残り {t} 秒",
+            analyzing: "分析中...",
+            resultTitle: "1/fゆらぎの可能性",
+            msgs: [
+                { min: 90, text: "【奇跡の癒やしボイス】\n完璧な1/fゆらぎです！聴く人を深くリラックスさせます。" },
+                { min: 80, text: "【素晴らしい癒やし効果】\n理想的なゆらぎを持っています。安心感を与える声です。" },
+                { min: 65, text: "【心地よいリズム】\n親しみやすい良い声です。リラックスして話せています。" },
+                { min: 50, text: "【親しみやすい声】\n日常会話に適した明るい声です。もう少しゆっくり話すと◎" },
+                { min: 30, text: "【正確で真面目な声】\n情報を正確に伝えるのに向いています。抑揚をつけると柔らかくなります。" },
+                { min: 0,  text: "【ユニークなリズム】\n緊張しているかもしれません。深呼吸してリラックスしましょう。" }
+            ]
+        },
+        en: {
+            title: "1/f Fluctuation Analyzer",
+            desc: "1/f fluctuation is a natural rhythm found in nature known to be comforting.<br>Let's measure the healing effect of your voice.",
+            scriptLabel: "▼ Read during recording (Scrollable) ▼",
+            script: scriptEN,
+            btnMic: "Start Recording (Max 3m)",
+            btnStop: "■ Stop & Analyze",
+            btnFile: "Select Audio File",
+            ready: "Ready",
+            recording: "Recording... {t}s left",
+            analyzing: "Analyzing...",
+            resultTitle: "Possibility of 1/f",
+            msgs: [
+                { min: 90, text: "[Miraculous Healing Voice]\nPerfect 1/f fluctuation! Deeply relaxing." },
+                { min: 80, text: "[Excellent Healing Effect]\nIdeal fluctuation. Gives a sense of security." },
+                { min: 65, text: "[Pleasant Rhythm]\nEasy to listen to and charming." },
+                { min: 50, text: "[Friendly Voice]\nBright rhythm. Speak slower for more healing." },
+                { min: 30, text: "[Precise & Serious]\nConstant rhythm. Good for accurate info." },
+                { min: 0,  text: "[Unique Rhythm]\nTry to relax and breathe deeply." }
+            ]
+        }
+    };
+
+    function changeLang(lang) {
+        curLang = lang;
+        var t = I18N[lang];
+        
+        document.getElementById('appTitle').innerHTML = t.title;
+        document.getElementById('appDesc').innerHTML = t.desc;
+        document.getElementById('scriptLabel').innerText = t.scriptLabel;
+        document.getElementById('readingScript').innerText = t.script;
+        
+        var btnMic = document.getElementById('btnMic');
+        var isRec = btnMic.className.indexOf('is-recording') !== -1;
+        document.getElementById('txtMic').innerText = isRec ? t.btnStop : t.btnMic;
+        
+        document.getElementById('txtFile').innerText = t.btnFile;
+        document.getElementById('statusText').innerText = t.ready;
+        document.getElementById('txtResultTitle').innerText = t.resultTitle;
+
+        var jaBtn = document.getElementById('btnLangJa');
+        var enBtn = document.getElementById('btnLangEn');
+        jaBtn.className = lang === 'ja' ? 'lang-btn active' : 'lang-btn';
+        enBtn.className = lang === 'en' ? 'lang-btn active' : 'lang-btn';
+    }
+
+    function setStatus(key, param, isProgress) {
+        var t = I18N[curLang][key] || key;
+        if(param) t = t.replace('{t}', param);
+        document.getElementById('statusText').innerText = t;
+
+        var pCont = document.getElementById('progressContainer');
+        var pBar = document.getElementById('progressBar');
+        var bFile = document.getElementById('btnFile');
+
+        if(isProgress) {
+            bFile.disabled = true;
+            pCont.style.display = 'block';
+        } else {
+            bFile.disabled = false;
+            pCont.style.display = 'none';
+            pBar.style.width = '0%';
+        }
+    }
+
+    function triggerFile() {
+        document.getElementById('fileInput').click();
+    }
+
+    function handleFile(input) {
+        if(input.files.length === 0) return;
+        setStatus('analyzing', null, true);
+        var reader = new FileReader();
+        reader.onload = function(e) { processArrayBuffer(e.target.result); };
+        reader.readAsArrayBuffer(input.files[0]);
+        input.value = '';
+    }
+
+    function toggleMic() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            stopMic();
+        } else {
+            startMic();
+        }
+    }
+
+    function startMic() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("マイクが使えません。\n「ファイルを選択」ボタンを使用してください。");
+            return;
+        }
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            mediaRecorder = new MediaRecorder(stream);
+            var chunks = [];
+            var maxTime = 180; // 3分
+            var timeLeft = maxTime;
+
+            var btn = document.getElementById('btnMic');
+            btn.className = 'is-recording';
+            document.getElementById('txtMic').innerText = I18N[curLang].btnStop;
+            
+            setStatus('recording', timeLeft, true);
+            var pBar = document.getElementById('progressBar');
+            pBar.style.transition = "width 1s linear";
+
+            recordTimer = setInterval(function() {
+                timeLeft--;
+                setStatus('recording', timeLeft, true);
+                var percent = ((maxTime - timeLeft) / maxTime) * 100;
+                pBar.style.width = percent + "%";
+                if(timeLeft <= 0) stopMic();
+            }, 1000);
+
+            mediaRecorder.ondataavailable = function(e) { chunks.push(e.data); };
+            mediaRecorder.onstop = function() {
+                clearInterval(recordTimer);
+                btn.className = '';
+                document.getElementById('txtMic').innerText = I18N[curLang].btnMic;
+                
+                var blob = new Blob(chunks, { type: 'audio/webm' });
+                var reader = new FileReader();
+                reader.onload = function(e) { processArrayBuffer(e.target.result); };
+                reader.readAsArrayBuffer(blob);
+                
+                stream.getTracks().forEach(function(t) { t.stop(); });
+                mediaRecorder = null;
+            };
+
+            mediaRecorder.start();
+        })
+        .catch(function(err) {
+            alert("マイクエラー: " + err.message);
+            setStatus('ready');
+        });
+    }
+
+    function stopMic() {
+        if(mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+        }
+    }
+
+    function processArrayBuffer(arrayBuffer) {
+        var AudioContext = window.AudioContext || window.webkitAudioContext;
+        var ctx = new AudioContext();
+        ctx.decodeAudioData(arrayBuffer, function(audioBuffer) {
+            setStatus('analyzing', null, true);
+            setTimeout(function() { analyze(audioBuffer); }, 100);
+        }, function(e) {
+            alert("解析失敗。形式を確認してください。");
+            setStatus('ready');
+        });
+    }
+
+    // --- 分析ロジック (相関・無音除去版) ---
+    function analyze(audioBuffer) {
+        var raw = audioBuffer.getChannelData(0);
+        var sr = audioBuffer.sampleRate;
+        var targetFs = 4000;
+        var step = Math.ceil(sr / targetFs);
+        var fs = sr / step;
+        
+        var env = [];
+        for(var i=0; i<raw.length; i+=step) env.push(Math.abs(raw[i]));
+
+        var blockSize = Math.floor(fs); // 1秒ごと
+        var numBlocks = Math.floor(env.length / blockSize);
+        
+        var validBlockCount = 0;
+        var points = 40;
+        var accumulatedPowers = [];
+        for(var k=0; k<points; k++) accumulatedPowers[k] = 0;
+
+        var freqs = [];
+        var f_min = 0.1, f_max = 20.0;
+        
+        // 対数ヘルパー
+        function log10(val) { return Math.log(val) / Math.LN10; }
+
+        for(var i=0; i<points; i++) {
+            var logF = log10(f_min) + (i/(points-1)) * (log10(f_max) - log10(f_min));
+            freqs.push(Math.pow(10, logF));
+        }
+
+        // ブロック処理
+        for(var b=0; b<numBlocks; b++) {
+            var start = b * blockSize;
+            var end = start + blockSize;
+            var block = [];
+            var maxVal = 0;
+            
+            for(var s=start; s<end; s++) {
+                var v = env[s];
+                block.push(v);
+                if(v > maxVal) maxVal = v;
+            }
+
+            // 無音除去 (閾値0.02)
+            if(maxVal < 0.02) continue;
+
+            validBlockCount++;
+
+            for(var i=0; i<points; i++) {
+                var f = freqs[i];
+                var omega = 2 * Math.PI * f / fs;
+                var sumR = 0, sumI = 0;
+                
+                for(var n=0; n<block.length; n++) {
+                    var v = block[n];
+                    var w = 0.5 * (1 - Math.cos(2 * Math.PI * n / (block.length - 1)));
+                    v = v * w;
+                    sumR += v * Math.cos(omega*n);
+                    sumI += v * Math.sin(omega*n);
+                }
+                accumulatedPowers[i] += (sumR*sumR + sumI*sumI);
+            }
+        }
+
+        if(validBlockCount === 0) validBlockCount = 1;
+        
+        var powers = [];
+        for(var k=0; k<accumulatedPowers.length; k++) {
+            powers[k] = accumulatedPowers[k] / validBlockCount;
+        }
+
+        // 統計処理 (相関係数と傾き)
+        var sumX=0, sumY=0, sumXY=0, sumXX=0, sumYY=0;
+        var logPs = [];
+        var count = freqs.length;
+
+        for(var i=0; i<count; i++) {
+            var x = log10(freqs[i]);
+            var y = log10(powers[i] + 1e-15);
+            logPs.push(y);
+            
+            sumX += x;
+            sumY += y;
+            sumXY += x*y;
+            sumXX += x*x;
+            sumYY += y*y;
+        }
+
+        // 傾き (Slope)
+        var slope = (count*sumXY - sumX*sumY) / (count*sumXX - sumX*sumX);
+        var intercept = (sumY - slope*sumX) / count;
+
+        // 相関係数 (Correlation Coefficient, r)
+        var numerator = count * sumXY - sumX * sumY;
+        var denominator = Math.sqrt((count * sumXX - sumX * sumX) * (count * sumYY - sumY * sumY));
+        var r = (denominator === 0) ? 0 : numerator / denominator;
+        
+        // 決定係数 (R^2) - 直線への当てはまり度
+        var r2 = r * r;
+
+        // スコア計算ロジック修正
+        // 1. 傾きが -1.0 に近いほど高得点 (基本点)
+        var diff = Math.abs(slope - (-1.0));
+        // 厳しめにする: sigma=0.4
+        var slopeScore = 100 * Math.exp(-(diff*diff) / (2 * 0.4 * 0.4));
+
+        // 2. 直線性ペナルティ
+        // ノイズでバラバラなら r2 は低くなる。r2 < 0.6 ならペナルティ大
+        // R^2 をそのまま掛けると厳しすぎるので、補正する
+        // r2が0.8以上ならそのまま、それ以下なら減衰させる
+        var linearityFactor = r2; 
+        if (linearityFactor < 0) linearityFactor = 0;
+        
+        // 最終スコア: 傾き得点 * 直線性係数
+        // これにより「傾きはいいけどガタガタなノイズ」は得点が下がる
+        var finalScore = slopeScore * Math.sqrt(linearityFactor); 
+
+        // 傾きがプラス（右肩上がり）などの異常値はさらに下げる
+        if(slope > 0) finalScore *= 0.1;
+
+        showResult(finalScore, slope, freqs, logPs, intercept);
+    }
+
+    function showResult(score, slope, freqs, logPs, intercept) {
+        setStatus('ready');
+        document.getElementById('result-area').style.display = 'block';
+        document.getElementById('scoreValue').innerText = score.toFixed(1) + "%";
+        
+        var msgs = I18N[curLang].msgs;
+        var msgObj = msgs[msgs.length - 1];
+        for(var i=0; i<msgs.length; i++) {
+            if(score >= msgs[i].min) { msgObj = msgs[i]; break; }
+        }
+        document.getElementById('scoreComment').innerText = "傾向値: " + slope.toFixed(2) + "\n" + msgObj.text;
+
+        drawGraph(freqs, logPs, slope, intercept);
+        setTimeout(function(){
+            document.getElementById('result-area').scrollIntoView({behavior: 'smooth'});
+        }, 100);
+    }
+
+    function drawGraph(freqs, logPs, slope, intercept) {
+        var cvs = document.getElementById('myCanvas');
+        var ctx = cvs.getContext('2d');
+        var w = cvs.parentElement.clientWidth || 300;
+        var h = cvs.parentElement.clientHeight || 200;
+        cvs.width = w; cvs.height = h;
+
+        ctx.clearRect(0,0,w,h);
+        var pad = 30;
+        var gw = w - pad*2;
+        var gh = h - pad*2;
+
+        var minX = Math.log10(0.1), maxX = Math.log10(20.0);
+        var minY = Math.min(...logPs), maxY = Math.max(...logPs);
+        var rangeY = (maxY - minY) || 1;
+
+        function toX(logF) { return pad + ((logF - minX)/(maxX-minX)) * gw; }
+        function toY(logP) { return h - pad - ((logP - minY)/rangeY) * gh; }
+
+        ctx.strokeStyle = "#eee";
+        ctx.beginPath();
+        var gridFreqs = [0.1, 1, 10, 20];
+        for(var k=0; k<gridFreqs.length; k++) {
+            var f = gridFreqs[k];
+            var x = toX(Math.log10(f));
+            ctx.moveTo(x, pad); ctx.lineTo(x, h-pad);
+            ctx.fillStyle="#aaa"; ctx.fillText(f+"Hz", x-10, h-5);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FF6B81";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for(var i=0; i<freqs.length; i++) {
+            var x = toX(Math.log10(freqs[i]));
+            var y = toY(logPs[i]);
+            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = "#aaa";
+        ctx.lineWidth = 1;
+        if(ctx.setLineDash) ctx.setLineDash([5,5]);
+        ctx.beginPath();
+        ctx.moveTo(toX(minX), toY(slope*minX + intercept));
+        ctx.lineTo(toX(maxX), toY(slope*maxX + intercept));
+        ctx.stroke();
+        if(ctx.setLineDash) ctx.setLineDash([]);
+    }
+
+    // 初期化
+    changeLang('ja');
+
+</script>
+</body>
+</html>
