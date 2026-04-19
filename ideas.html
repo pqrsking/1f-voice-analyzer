@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ideas for Developers – 1/f Voice Analyzer</title>
+<style>
+    :root {
+        --primary: #FFC0CB;
+        --accent: #FF6B81;
+        --bg: #FFF5F7;
+        --text: #444;
+        --card-bg: #ffffff;
+        --tag-bg: #FFF0F5;
+    }
+    * { box-sizing: border-box; }
+    body {
+        font-family: sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 15px;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+    }
+    .container {
+        width: 100%;
+        max-width: 600px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    header {
+        background: var(--card-bg);
+        border-radius: 24px;
+        padding: 24px 20px 20px;
+        box-shadow: 0 10px 30px rgba(255,105,180,0.15);
+        text-align: center;
+    }
+    header h1 {
+        font-size: 1.4rem;
+        margin: 0 0 8px;
+        color: var(--accent);
+    }
+    header p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #888;
+        line-height: 1.5;
+    }
+    .back-link {
+        display: inline-block;
+        margin-bottom: 12px;
+        font-size: 0.85rem;
+        color: var(--accent);
+        text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .section-title {
+        font-size: 0.75rem;
+        font-weight: bold;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #bbb;
+        margin: 0 0 10px 4px;
+    }
+    .card {
+        background: var(--card-bg);
+        border-radius: 18px;
+        padding: 18px 20px;
+        box-shadow: 0 4px 16px rgba(255,105,180,0.10);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .card-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .card-icon {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .card-body { flex: 1; }
+    .card-title {
+        font-weight: bold;
+        font-size: 1rem;
+        color: #333;
+        margin: 0 0 4px;
+    }
+    .card-desc {
+        font-size: 0.88rem;
+        color: #666;
+        line-height: 1.6;
+        margin: 0;
+    }
+    .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+    }
+    .tag {
+        background: var(--tag-bg);
+        border: 1px solid var(--primary);
+        color: var(--accent);
+        font-size: 0.75rem;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+    .tag.green  { background: #f0fff4; border-color: #9ae6b4; color: #276749; }
+    .tag.blue   { background: #ebf8ff; border-color: #90cdf4; color: #2c5282; }
+    .tag.orange { background: #fffaf0; border-color: #fbd38d; color: #744210; }
+    .tag.purple { background: #faf5ff; border-color: #d6bcfa; color: #553c9a; }
+    .difficulty {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.78rem;
+        color: #aaa;
+        margin-top: 2px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot.easy   { background: #68d391; }
+    .dot.medium { background: #f6ad55; }
+    .dot.hard   { background: #fc8181; }
+    footer {
+        background: var(--card-bg);
+        border-radius: 18px;
+        padding: 18px 20px;
+        box-shadow: 0 4px 16px rgba(255,105,180,0.10);
+        text-align: center;
+        font-size: 0.85rem;
+        color: #aaa;
+        line-height: 1.7;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <div style="text-align:center;">
+        <a class="back-link" href="index.html">← Back to Analyzer</a>
+    </div>
+
+    <header>
+        <h1>Ideas for Developers</h1>
+        <p>Potential improvements and features for the 1/f Voice Analyzer.<br>
+        Pick one up and send a pull request!</p>
+    </header>
+
+    <!-- Analysis Improvements -->
+    <div>
+        <div class="section-title">Analysis &amp; Signal Processing</div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">📐</div>
+                    <div class="card-body">
+                        <p class="card-title">True Spectral Slope via Log–Log Regression</p>
+                        <p class="card-desc">Replace the current DFT-loop approach with a proper FFT (e.g. using the Web Audio API's <code>AnalyserNode</code>) and fit the power spectral density in log–log space. A 1/f signal should yield a slope ≈ −1. Report the slope and R² clearly.</p>
+                    </div>
+                </div>
+                <div class="tags"><span class="tag">Signal Processing</span><span class="tag blue">Web Audio API</span></div>
+                <div class="difficulty"><span class="dot medium"></span> Medium difficulty</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🔇</div>
+                    <div class="card-body">
+                        <p class="card-title">Smarter Silence / Noise-Floor Detection</p>
+                        <p class="card-desc">The current 0.02 RMS threshold is a hard-coded guess. Compute the noise floor from the first silent frames and set the threshold dynamically (e.g. noise floor + 10 dB). This reduces false positives on quiet microphones.</p>
+                    </div>
+                </div>
+                <div class="tags"><span class="tag">Signal Processing</span><span class="tag green">Good First Issue</span></div>
+                <div class="difficulty"><span class="dot easy"></span> Beginner-friendly</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">📊</div>
+                    <div class="card-body">
+                        <p class="card-title">Pitch &amp; Jitter / Shimmer Metrics</p>
+                        <p class="card-desc">Add optional voice-quality metrics (fundamental frequency F0, jitter, shimmer) alongside the 1/f score. These are standard in clinical voice research and give users more nuanced feedback.</p>
+                    </div>
+                </div>
+                <div class="tags"><span class="tag">Feature</span><span class="tag purple">Research</span></div>
+                <div class="difficulty"><span class="dot hard"></span> Advanced</div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- UX Improvements -->
+    <div>
+        <div class="section-title">UX &amp; Visualisation</div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">📈</div>
+                    <div class="card-body">
+                        <p class="card-title">Real-Time Waveform / Spectrum Preview</p>
+                        <p class="card-desc">Show a live waveform or spectrum canvas during recording so users know the microphone is picking up their voice. A simple <code>AnalyserNode</code> drawing loop is enough.</p>
+                    </div>
+                </div>
+                <div class="tags"><span class="tag">UX</span><span class="tag green">Good First Issue</span></div>
+                <div class="difficulty"><span class="dot easy"></span> Beginner-friendly</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🎨</div>
+                    <div class="card-body">
+                        <p class="card-title">Accessible Colour Themes (Dark Mode)</p>
+                        <p class="card-desc">Respect <code>prefers-color-scheme: dark</code> and offer a manual toggle. The current palette uses pink-on-white which fails WCAG AA contrast on some elements — fix those too.</p>
+                    </div>
+                </div>
+                <div class="tags"><span class="tag">Accessibility</span><span class="tag">UX</span></div>
+                <div class="difficulty"><span class="dot easy"></span> Beginner-friendly</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">📤</div>
+                    <div class="card-body">
+                        <p class="card-title">Share / Export Result Card</p>
+                        <p class="card-desc">Let users download a PNG result card (score + comment + spectrum graph) or share to social media via the Web Share API. Great for viral engagement.</p>
+                    </div>
+                </div>
+                <div class="tags"><span class="tag">Feature</span><span class="tag blue">Web API</span></div>
+                <div class="difficulty"><span class="dot medium"></span> Medium difficulty</div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Engineering -->
+    <div>
+        <div class="section-title">Engineering &amp; Performance</div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">⚡</div>
+                    <div class="card-body">
+                        <p class="card-title">Move Analysis to a Web Worker</p>
+                        <p class="card-desc">The current analysis runs on the main thread and can freeze the UI for long recordings. Moving the DFT loop into a <code>Worker</code> keeps the page responsive and is a clean architectural improvement.</p>
+                    </div>
+                </div>
+                <div class="tags"><span class="tag">Performance</span><span class="tag blue">Web API</span></div>
+                <div class="difficulty"><span class="dot medium"></span> Medium difficulty</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🧪</div>
+                    <div class="card-body">
+                        <p class="card-title">Unit Tests for the Analysis Logic</p>
+                        <p class="card-desc">Add a minimal test suite (e.g. with Vitest or plain <code>assert</code>) that feeds synthetic 1/f noise into <code>analyze()</code> and asserts the slope is near −1. This would catch regressions when the algorithm is changed.</p>
+                    </div>
+                </div>
+                <div class="tags"><span class="tag">Testing</span><span class="tag green">Good First Issue</span></div>
+                <div class="difficulty"><span class="dot easy"></span> Beginner-friendly</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🌐</div>
+                    <div class="card-body">
+                        <p class="card-title">PWA / Offline Support</p>
+                        <p class="card-desc">Add a Service Worker and a <code>manifest.json</code> so the app can be installed on mobile home screens and work without a network connection. All analysis is already local, so this is purely a shell addition.</p>
+                    </div>
+                </div>
+                <div class="tags"><span class="tag">Feature</span><span class="tag blue">PWA</span></div>
+                <div class="difficulty"><span class="dot easy"></span> Beginner-friendly</div>
+            </div>
+
+        </div>
+    </div>
+
+    <footer>
+        All ideas are open — no assignment needed. Just open a PR and note which idea you tackled.<br>
+        Questions? Open an <a href="https://github.com/pqrsking/1f-voice-analyzer/issues">issue on GitHub</a>.
+    </footer>
+
+</div>
+</body>
+</html>
